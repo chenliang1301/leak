@@ -49,6 +49,9 @@ static void record_allocation(void *ptr, size_t size, const char *type) {
     if (ptr && alloc_count < MAX_ALLOCS) {
         allocations[alloc_count].ptr = ptr;
         allocations[alloc_count].size = size;
+        // 记录内存分配的调用者地址，使用GCC内置函数__builtin_return_address(0)获取当前函数的返回地址
+        // 这有助于在检测内存泄漏时追踪是哪个函数发起了内存分配
+        // 0表示获取当前函数的返回地址，1表示获取上一级函数的返回地址，以此类推
         allocations[alloc_count].caller = __builtin_return_address(0);
         allocations[alloc_count].type = type;
         alloc_count++;

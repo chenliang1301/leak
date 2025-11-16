@@ -65,6 +65,7 @@ for bin in "${BINS[@]}"; do
   fi
 
   # build addr2line command
+  # 地址解析 ：使用 addr2line 工具将内存地址转换为函数名和源代码位置
   cmd=(addr2line -f -p -e "$bin")
   for a in "${addrs[@]}"; do
     cmd+=("$a")
@@ -73,6 +74,10 @@ for bin in "${BINS[@]}"; do
   mapfile -t results < <("${cmd[@]}")
 
   # 输出映射，优先用 func 字段
+  # 结果格式化与输出 ：
+  # - 解析 addr2line 的输出，提取函数名和文件名:行号
+  # - 处理特殊情况（如未知函数名）
+  # - 输出格式化的泄漏信息，包含内存地址、大小、函数名和源代码位置
   for i in "${!results[@]}"; do
     res=${results[$i]}
     meta=${metas[$i]}
