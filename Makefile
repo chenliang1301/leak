@@ -36,9 +36,6 @@ $(LIB_DETECTOR_BASE): $(DETECTOR_DIR)/leak_detector_base.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SHARED_FLAGS) $< -o $@ $(LDFLAGS)
 
 # Build test programs - 修正路径
-$(BUILD_DIR)/test: $(OBJ_DIR)/test.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS_EX) $< -o $@
-
 $(BUILD_DIR)/leak_test: $(OBJ_DIR)/test.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_EX) $< -o $@
 
