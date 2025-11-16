@@ -92,7 +92,8 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
     # read fields
     ptr=$(awk '{print $1}' <<<"$line")
     size=$(awk '{print $2}' <<<"$line")
-    callers_field=$(awk '{print $3}' <<<"$line")
+    type=$(awk '{print $3}' <<<"$line")
+    callers_field=$(awk '{print $4}' <<<"$line")
 
     chain_items=()
     func_names=()
@@ -189,7 +190,7 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
     total_filtered=${#filtered_chain[@]}
     # If hiding _start-only leaks is requested and no frames remain after filtering, skip printing this leak
     if [ "$HIDE_START" -eq 1 ] && [ "$total_filtered" -eq 0 ]; then
-      printf "%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$outer_func" "$outer_fileline" "$outer_bin" >> "$AGG_TMP"
+      printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$type" "$outer_func" "$outer_fileline" "$outer_bin" >> "$AGG_TMP"
       continue
     fi
 
@@ -261,7 +262,7 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
     fi
 
     if [ "$JSON_MODE" -eq 0 ]; then
-      printf "Leak: %s (%s bytes)\n" "$ptr" "$size"
+      printf "Leak: %s (%s bytes) [%s]\n" "$ptr" "$size" "$type"
     fi
 
     # Apply frame-range on filtered list
@@ -313,7 +314,7 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
       fi
     fi
 
-    printf "%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$outer_func" "$outer_fileline" "$outer_bin" >> "$AGG_TMP"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$type" "$outer_func" "$outer_fileline" "$outer_bin" >> "$AGG_TMP"
 
     if [ "$JSON_MODE" -eq 1 ]; then
       json_frames=""
@@ -346,7 +347,8 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
       done
       esc_ptr=$(printf "%s" "$ptr" | sed -e 's/\\/\\\\/g' -e 's/"/\\\"/g')
       esc_size=$size
-      leak_json="{\"ptr\":\"$esc_ptr\",\"size\":$esc_size,\"frames\":[$json_frames]}"
+      esc_type=$(printf "%s" "$type" | sed -e 's/\\/\\\\/g' -e 's/"/\\\"/g')
+      leak_json="{\"ptr\":\"$esc_ptr\",\"size\":$esc_size,\"type\":\"$esc_type\",\"frames\":[$json_frames]}"
       if grep -q -s "^\[\]$" "$JSON_TMP_LEAKS" 2>/dev/null; then
         echo "$leak_json" > "$JSON_TMP_LEAKS.items"
       else
@@ -376,7 +378,7 @@ if [ "$HAS_CALLERS" -eq 1 ]; then
     echo
     echo "==== 汇总 (按 binary / file / function) ===="
     AGG_RES=$(mktemp)
-    awk -F"\t" '{ key=$5"\t"$4"\t"$3; cnt[key]++; sum[key]+=($2+0) } END { for (k in cnt) { printf "%d\t%d\t%s\n", cnt[k], sum[k], k } }' "$AGG_TMP" > "$AGG_RES"
+    awk -F"\t" '{ key=$6"\t"$5"\t"$4; cnt[key]++; sum[key]+=($2+0) } END { for (k in cnt) { printf "%d\t%d\t%s\n", cnt[k], sum[k], k } }' "$AGG_TMP" > "$AGG_RES"
     printf "%6s %10s %s\n" "COUNT" "BYTES" "BINARY | FILE | FUNCTION"
     sort -t$'\t' -k2,2nr "$AGG_RES" | awk -F"\t" '{ printf "%6d %10d %s | %s | %s\n", $1, $2, $3, $4, $5 }'
     rm -f "$AGG_RES"
@@ -520,7 +522,8 @@ for tmp in "${TMPDIRS[@]:-}"; do
     printf "  #%02d: %s (%s) [binary: %s]\n" "$frame_idx" "$func" "$fileline" "$bin"
 
     # append to aggregate file: ptr\t size\t func\t fileline\t bin
-    printf "%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$func" "$fileline" "$bin" >> "$AGG_TMP"
+    type="-"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$ptr" "$size" "$type" "$func" "$fileline" "$bin" >> "$AGG_TMP"
   done
 
   rm -rf "$tmp"
@@ -532,7 +535,7 @@ if [ "$SUMMARY" -eq 1 ]; then
   # aggregate by binary, file and function: count and total bytes
   AGG_RES=$(mktemp)
   awk -F"\t" '
-  { key=$5"\t"$4"\t"$3; cnt[key]++; sum[key]+=($2+0) }
+  { key=$6"\t"$5"\t"$4; cnt[key]++; sum[key]+=($2+0) }
   END {
     for (k in cnt) {
       printf "%d\t%d\t%s\n", cnt[k], sum[k], k
