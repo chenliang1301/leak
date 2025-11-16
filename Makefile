@@ -8,7 +8,7 @@ LDFLAGS = -ldl -lpthread
 # Directories
 BUILD_DIR = build
 DETECTOR_DIR = src/detector
-OBJ_DIR = src/obj
+OBJ_DIR = src/test
 
 # Targets
 TEST_PROGRAM = $(BUILD_DIR)/leak_test
@@ -39,8 +39,11 @@ $(LIB_DETECTOR_BASE): $(DETECTOR_DIR)/leak_detector_base.c | $(BUILD_DIR)
 $(BUILD_DIR)/test: $(OBJ_DIR)/test.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_EX) $< -o $@
 
-$(BUILD_DIR)/leak_test: $(OBJ_DIR)/leak_test.c | $(BUILD_DIR)
+$(BUILD_DIR)/leak_test: $(OBJ_DIR)/test.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_EX) $< -o $@
+
+$(BUILD_DIR)/dlopen_test: $(OBJ_DIR)/dlopen_test.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS_EX) $< -o $@ -ldl -lpthread
 
 # Clean build artifacts
 clean:
@@ -69,6 +72,8 @@ test_heaptrack: $(TEST_PROGRAM)
 
 # Build all test programs
 tests: $(BUILD_DIR)/test $(BUILD_DIR)/leak_test
+
+tests-all: tests $(BUILD_DIR)/dlopen_test
 
 # Help information
 help:

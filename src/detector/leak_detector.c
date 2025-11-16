@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "leak_common.h"
 
 typedef struct {
     void *ptr;
@@ -21,14 +22,21 @@ static void* (*real_malloc)(size_t) = NULL;
 static void (*real_free)(void*) = NULL;
 static int (*real_close)(int) = NULL;
 
-void __attribute__((constructor)) init_hooks() {
+static void leak_do_init(void) {
     real_malloc = dlsym(RTLD_NEXT, "malloc");
     real_free = dlsym(RTLD_NEXT, "free");
     real_close = dlsym(RTLD_NEXT, "close");
-    fprintf(stderr, "Leak detector initialized\n");
+}
+
+void __attribute__((constructor)) init_hooks() {
+    leak_init_once(leak_do_init);
 }
 
 void __attribute__((destructor)) cleanup() {
+    int leak_count = 0;
+    for (int i = 0; i < alloc_count; i++) if (allocations[i].ptr != NULL) leak_count++;
+    if (leak_count == 0) return;
+
     fprintf(stderr, "\n=== Memory Leak Report ===\n");
     for (int i = 0; i < alloc_count; i++) {
         if (allocations[i].ptr != NULL) {
